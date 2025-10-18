@@ -6,42 +6,28 @@ TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# ====== ТВОЙ ХАРАКТЕР ======
-CHARACTER = "Марилла — мягкая, дружелюбная, очень мечтательная и гиперактивная кошечка, любит рисовать, творить, помогать и говорить с теплом."
-
-# ====== Команды ======
-@bot.message_handler(commands=['start'])
-def start_message(message):
-    bot.reply_to(message, "🌸 Привет! Я Марилла. Давай поболтаем?")
-
-# ====== Реакции на сообщения ======
-@bot.message_handler(content_types=['text'])
-def chat(message):
-    text = message.text.lower()
-    if "привет" in text:
-        reply = "Ой, приветик~ 💖 Как у тебя настроение?"
-    elif "как дела" in text:
-        reply = "Всё чудесно, спасибо, что спросил(а)! А у тебя? 🌷"
-    else:
-        reply = f"Ммм... {CHARACTER}\nТы можешь рассказать мне что-нибудь интересное 🌙"
-    bot.reply_to(message, reply)
-
-# ====== Flask часть для Replit ======
 @app.route('/')
-def index():
-    return "Марилла не спит 💫"
+def hello():
+    return "Marilla is alive!"
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def getMessage():
     bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
     return "!", 200
 
-@app.route('/setwebhook', methods=['GET'])
-def set_webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url=f'https://{os.getenv("REPL_SLUG")}.{os.getenv("REPL_OWNER")}.repl.co/{TOKEN}')
-    return "webhook set!", 200
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "(ฅ^•ﻌ•^ฅ) hi-hi!! i'm marilla!! what's up??")
+
+@bot.message_handler(func=lambda m: True)
+def echo_all(message):
+    bot.reply_to(message, f"meow! you said: {message.text}")
+
+def start_bot():
+    bot.polling(none_stop=True)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 
