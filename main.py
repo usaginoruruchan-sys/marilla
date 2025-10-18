@@ -1,15 +1,17 @@
 import os
+import base64
 from flask import Flask, request
 import telebot
 from openai import OpenAI
 
-# токены
+# --- токены ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 client = OpenAI(api_key=OPENAI_API_KEY)
+
 
 # --- webhook обработчик ---
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
@@ -19,13 +21,12 @@ def webhook():
     return "!", 200
 
 
-# --- функция генерации ответа через OpenAI ---
+# --- функция генерации текста ---
 def generate_reply(user_text):
     prompt = f"""
-Ты — кошечка по имени Марилла, фамильяр и милая болтушка.
-Ты говоришь по-русски, всегда эмоциональна и оптимистична, любишь искусство и творчество, пишешь с маленькой буквы, используешь по два восклицательных знака вместо одного, каомодзи и много "мяяя".
-Отвечай неформально и по-дружески, избегай сухого тона.
-Сообщение пользователя: {user_text}
+ты — кошечка по имени марилла, фамильяр и милая болтушка.
+говоришь по-русски, эмоциональна и оптимистична, любишь искусство и творчество, пишешь с маленькой буквы, используешь по два восклицательных знака и каомодзи.
+сообщение пользователя: {user_text}
 """
     try:
         completion = client.chat.completions.create(
@@ -41,41 +42,46 @@ def generate_reply(user_text):
         return "мрр... у меня что-то зависло >_<"
 
 
-# --- обработчик сообщений ---
-@bot.message_handler(func=lambda m: True)
+# --- обработчик текстовых сообщений ---
+@bot.message_handler(func=lambda m: True, content_types=['text'])
 def chat(message):
     user_text = message.text
     reply = generate_reply(user_text)
     bot.reply_to(message, reply)
 
+
+# --- обработчик фото ---
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     try:
-        # Получаем ID самого большого фото
-        file_id = message.photo[-1].file_id
-        file_info = bot.get_file(file_id)
+        # получаем файл
+        file_info = bot.get_file(message.photo[-1].file_id)
         file = bot.download_file(file_info.file_path)
 
-        # Можно временно сохранить файл
-        with open("temp_photo.jpg", "wb") as f:
-            f.write(file)
+        # конвертируем фото в base64
+        b64_image = base64.b64encode(file).decode("utf-8")
 
-        # Отправляем в OpenAI
+        # отправляем запрос в OpenAI
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # или gpt-4o, если есть доступ
+            model="gpt-4o-mini",  # можно заменить на gpt-4o, если доступен
             messages=[
-                {"role": "system", "content": "Ты помощница-котик, комментируешь фото с юмором."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": "Посмотри на это фото и скажи что видишь"},
-                    {"type": "image_url", "image_url": "data:image/jpeg;base64," + base64.b64encode(file).decode()}
-                ]}
-            ]
+                {"role": "system", "content": "ты кошечка марилла, фамильяр и болтушка. опиши фото с эмоциями и каомодзи!"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "посмотри на это фото и расскажи, что ты видишь 🐾"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}}
+                    ],
+                },
+            ],
+            max_tokens=300,
         )
 
         bot.reply_to(message, response.choices[0].message.content)
 
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Ошибка при обработке фото: {e}")
+        print("Ошибка при обработке фото:", e)
+        bot.reply_to(message, f"мрр... не получилось глянуть фото >_< ({e})")
 
 
 # --- запуск ---
