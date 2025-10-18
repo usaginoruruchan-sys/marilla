@@ -48,6 +48,35 @@ def chat(message):
     reply = generate_reply(user_text)
     bot.reply_to(message, reply)
 
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    try:
+        # Получаем ID самого большого фото
+        file_id = message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        file = bot.download_file(file_info.file_path)
+
+        # Можно временно сохранить файл
+        with open("temp_photo.jpg", "wb") as f:
+            f.write(file)
+
+        # Отправляем в OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # или gpt-4o, если есть доступ
+            messages=[
+                {"role": "system", "content": "Ты помощница-котик, комментируешь фото с юмором."},
+                {"role": "user", "content": [
+                    {"type": "text", "text": "Посмотри на это фото и скажи что видишь"},
+                    {"type": "image_url", "image_url": "data:image/jpeg;base64," + base64.b64encode(file).decode()}
+                ]}
+            ]
+        )
+
+        bot.reply_to(message, response.choices[0].message.content)
+
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Ошибка при обработке фото: {e}")
+
 
 # --- запуск ---
 if __name__ == "__main__":
@@ -56,3 +85,4 @@ if __name__ == "__main__":
     bot.set_webhook(url=url)
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
