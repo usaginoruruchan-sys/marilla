@@ -32,10 +32,6 @@ if __name__ == "__main__":
     # Запускаем Flask
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-git add .
-git commit -m "fix: enable webhook"
-git push
-
 
 
 
