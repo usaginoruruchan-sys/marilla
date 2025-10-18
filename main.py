@@ -23,11 +23,19 @@ def start(message):
 def echo_all(message):
     bot.reply_to(message, f"meow! you said: {message.text}")
 
-def start_bot():
-    bot.polling(none_stop=True)
-
 if __name__ == "__main__":
+    # Удаляем старый webhook, если был
+    bot.remove_webhook()
+    # Настраиваем новый webhook
+    url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/{TOKEN}"
+    bot.set_webhook(url=url)
+    # Запускаем Flask
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+git add .
+git commit -m "fix: enable webhook"
+git push
+
+
 
 
